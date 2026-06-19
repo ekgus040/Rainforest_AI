@@ -56,3 +56,15 @@ score = 0.25*fireDamage + 0.20*disasterVuln + 0.35*residentialExposure + 0.20*re
 ```
 
 등급: 80↑ 1등급 / 65↑ 2등급 / 50↑ 3등급 / 35↑ 4등급 / 그 외 5등급
+
+## 실데이터 연동 — disasterVuln (산사태위험지도)
+
+`lib/landslideRiskClient.js`에서 행정안전부 생활안전지도 WMS(`safemap.go.kr/openapi2/IF_0046_WMS`)를
+좌표 기반으로 호출해 산사태위험등급(1~5)을 받아와 `disasterVuln`(0~100)으로 환산한다.
+
+- `.env`의 `SAFEMAP_API_KEY`가 있으면: 실데이터로 `disasterVuln` 덮어씀
+- 키가 없거나 호출 실패 시: `mockCandidates.js`에 박혀있는 기존 값 그대로 사용 (자동 fallback)
+
+**주의**: safemap OpenAPI는 인증키 없이는 요청이 500으로 막혀서, 정확한 layer명과 응답 XML
+구조를 이 시점에는 확인하지 못했다. `SAFEMAP_API_KEY` 발급 후 `landslideRiskClient.js`의
+`LAYER_NAME`과 `parseRiskGrade()` 파싱 로직을 실제 응답에 맞게 검증/수정해야 한다.
