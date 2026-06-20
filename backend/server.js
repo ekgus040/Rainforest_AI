@@ -5,9 +5,9 @@ const mockCandidates = require("./data/mockCandidates");
 const demoCandidatesAE = require("./data/demoCandidatesAE");
 const { withScoreAndGrade } = require("./lib/scoring");
 const { fetchLandslideRiskScore } = require("./lib/landslideRiskClient");
-const { normalizeCandidate } = require("./lib/aiSupport");
-const { createAiRoutes } = require("./lib/aiRoutes");
-const { loadEnv } = require("./lib/simpleEnv");
+const { normalizeCandidate } = require("./ai/aiSupport");
+const { createAiRoutes } = require("./ai/aiRoutes");
+const { loadEnv } = require("./ai/simpleEnv");
 
 loadEnv();
 
