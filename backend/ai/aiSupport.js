@@ -102,28 +102,30 @@ function normalizeCandidate(candidate) {
   });
   const gradeInfo = getGradeInfo(priorityScore);
 
+  const merged = { ...candidate };
+  // 입력에 들어있을 수 있는 레거시/중복 필드는 표준 필드로 덮어쓰기 전에 제거
+  delete merged.fireDamage;
+  delete merged.disasterVuln;
+  delete merged.restorationDifficulty;
+  delete merged.residentialExposure;
+  delete merged.score;
+  delete merged.riskTags;
+  delete merged.jurisdiction;
+  delete merged.gradeLabel;
+  delete merged.gradeAction;
+
   return {
-    ...candidate,
+    ...merged,
     fireDamageScore,
     landslideRiskScore,
     soilRunoffRiskScore,
     exposureScore,
-
-    // 기존 백엔드 scoring.js와의 호환 필드
-    fireDamage: fireDamageScore,
-    disasterVuln: landslideRiskScore,
-    restorationDifficulty: soilRunoffRiskScore,
-    residentialExposure: exposureScore,
-
     priorityScore,
-    score: priorityScore,
     grade: gradeInfo.grade,
     gradeLabel: gradeInfo.label,
     gradeAction: gradeInfo.action,
-    riskTags: candidate.riskTags || candidate.mainRisks || [],
     mainRisks: candidate.mainRisks || candidate.riskTags || [],
     agency: candidate.agency || candidate.jurisdiction || "관할 지자체",
-    jurisdiction: candidate.jurisdiction || candidate.agency || "관할 지자체",
   };
 }
 

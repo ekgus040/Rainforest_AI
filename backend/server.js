@@ -3,7 +3,6 @@ const cors = require("cors");
 
 const mockCandidates = require("./data/mockCandidates");
 const demoCandidatesAE = require("./data/demoCandidatesAE");
-const { withScoreAndGrade } = require("./lib/scoring");
 const { fetchLandslideRiskScore } = require("./lib/landslideRiskClient");
 const { normalizeCandidate } = require("./ai/aiSupport");
 const { createAiRoutes } = require("./ai/aiRoutes");
@@ -16,8 +15,9 @@ app.use(cors());
 app.use(express.json());
 
 // SAFEMAP_API_KEY가 설정되어 있으면 행정안전부 산사태위험지도 WMS 실데이터로
-// disasterVuln을 덮어쓰고, 키가 없거나 호출이 실패하면 mock 값을 그대로 둔다.
-async function withRealDisasterVuln(candidate) {
+// landslideRiskScore를 덮어쓰고, 키가 없거나 호출이 실패하면 mock 값을 그대로 둔다.
+// 점수/등급 계산은 ai/aiSupport.js의 normalizeCandidate가 단일 기준으로 처리한다.
+async function withRealLandslideRisk(candidate) {
   if (!candidate?.location?.lat || !candidate?.location?.lng) {
     return candidate;
   }
@@ -27,7 +27,7 @@ async function withRealDisasterVuln(candidate) {
     candidate.location.lng
   );
   if (realScore === null) return candidate;
-  return { ...candidate, disasterVuln: realScore, landslideRiskScore: realScore };
+  return { ...candidate, landslideRiskScore: realScore };
 }
 
 function shouldUseDemo(req) {
@@ -39,8 +39,8 @@ async function getCandidates(req) {
     return demoCandidatesAE.map(normalizeCandidate);
   }
 
-  const enriched = await Promise.all(mockCandidates.map(withRealDisasterVuln));
-  return enriched.map((candidate) => normalizeCandidate(withScoreAndGrade(candidate)));
+  const enriched = await Promise.all(mockCandidates.map(withRealLandslideRisk));
+  return enriched.map(normalizeCandidate);
 }
 
 async function findCandidateById(id, req) {
