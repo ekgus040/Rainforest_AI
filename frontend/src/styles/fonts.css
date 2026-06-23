@@ -1,0 +1,18 @@
+/* Korean Government Dashboard Typography */
+
+/* Import Pretendard Variable Font for optimal Korean display */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+
+/* Import Noto Sans KR as fallback */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
+
+/* Apply to all text elements to ensure consistent Korean typography */
+body,
+input,
+textarea,
+select,
+button {
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard Variable", Pretendard, "Noto Sans KR", "Malgun Gothic", "맑은 고딕", sans-serif;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+}

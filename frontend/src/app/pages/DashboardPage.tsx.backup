@@ -1,0 +1,654 @@
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router";
+import { Map, BarChart3, TrendingUp, FileText, MapPin, Calendar, AlertTriangle } from "lucide-react";
+import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
+import { SelectNative } from "../components/ui/select-native";
+import { Checkbox } from "../components/ui/checkbox";
+import KoreaMap from "../components/dashboard/KoreaMap";
+import CandidateSummary from "../components/dashboard/CandidateSummary";
+
+// Region hierarchy data
+const regionHierarchy: { [key: string]: string[] } = {
+  "전국": [],
+  "서울특별시": ["종로구", "중구", "용산구", "성동구", "광진구"],
+  "부산광역시": ["중구", "서구", "동구", "영도구", "부산진구"],
+  "대구광역시": ["중구", "동구", "서구", "남구", "북구"],
+  "인천광역시": ["중구", "동구", "미추홀구", "연수구", "남동구"],
+  "광주광역시": ["동구", "서구", "남구", "북구", "광산구"],
+  "대전광역시": ["동구", "중구", "서구", "유성구", "대덕구"],
+  "울산광역시": ["중구", "남구", "동구", "북구", "울주군"],
+  "세종특별자치시": [],
+  "경기도": ["수원시", "성남시", "안양시", "부천시", "광명시", "평택시", "과천시", "오산시"],
+  "강원특별자치도": ["춘천시", "원주시", "강릉시", "동해시", "태백시", "속초시", "삼척시", "홍천군", "횡성군", "영월군", "평창군", "정선군", "철원군", "화천군", "양구군", "인제군", "고성군", "양양군"],
+  "충청북도": ["청주시", "충주시", "제천시", "보은군", "옥천군", "영동군", "증평군", "진천군", "괴산군", "음성군", "단양군"],
+  "충청남도": ["천안시", "공주시", "보령시", "아산시", "서산시", "논산시", "계룡시", "당진시", "금산군", "부여군", "서천군", "청양군", "홍성군", "예산군", "태안군"],
+  "전북특별자치도": ["전주시", "군산시", "익산시", "정읍시", "남원시", "김제시", "완주군", "진안군", "무주군", "장수군", "임실군", "순창군", "고창군", "부안군"],
+  "전라남도": ["목포시", "여수시", "순천시", "나주시", "광양시", "담양군", "곡성군", "구례군", "고흥군", "보성군", "화순군", "장흥군", "강진군", "해남군", "영암군", "무안군", "함평군", "영광군", "장성군", "완도군", "진도군", "신안군"],
+  "경상북도": ["포항시", "경주시", "김천시", "안동시", "구미시", "영주시", "영천시", "상주시", "문경시", "경산시", "의성군", "청송군", "영양군", "영덕군", "청도군", "고령군", "성주군", "칠곡군", "예천군", "봉화군", "울진군", "울릉군"],
+  "경상남도": ["창원시", "진주시", "통영시", "사천시", "김해시", "밀양시", "거제시", "양산시", "의령군", "함안군", "창녕군", "고성군", "남해군", "하동군", "산청군", "함양군", "거창군", "합천군"],
+  "제주특별자치도": ["제주시", "서귀포시"],
+};
+
+export default function DashboardPage() {
+  const navigate = useNavigate();
+
+  // Filter states
+  const [selectedProvince, setSelectedProvince] = useState("전국");
+  const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [selectedYear, setSelectedYear] = useState("전체");
+  const [selectedGrade, setSelectedGrade] = useState("전체");
+  const [selectedRisks, setSelectedRisks] = useState<string[]>([]);
+  const [selectedCandidate, setSelectedCandidate] = useState<any>(null);
+
+  const navItems = [
+    { icon: <BarChart3 className="h-5 w-5" />, label: "대시보드", path: "/dashboard" },
+    { icon: <TrendingUp className="h-5 w-5" />, label: "TOP 후보지", path: "/top-candidates" },
+    { icon: <FileText className="h-5 w-5" />, label: "분석 방법", path: "/methodology" },
+  ];
+
+  const riskFactors = [
+    "민가 인접",
+    "도로 인접",
+    "급경사",
+    "집중호우 위험",
+    "산사태 위험",
+    "토사유출 위험",
+    "식생 훼손 심각",
+    "자연 회복 어려움",
+  ];
+
+  // Get available districts for selected province
+  const availableDistricts = useMemo(() => {
+    return regionHierarchy[selectedProvince] || [];
+  }, [selectedProvince]);
+
+  // Reset district when province changes
+  const handleProvinceChange = (province: string) => {
+    setSelectedProvince(province);
+    setSelectedDistrict("");
+  };
+
+  // Generate dynamic title
+  const pageTitle = useMemo(() => {
+    if (selectedDistrict) {
+      return `${selectedProvince} ${selectedDistrict} 산림 복원 우선순위 현황`;
+    } else if (selectedProvince !== "전국") {
+      return `${selectedProvince} 산림 복원 우선순위 현황`;
+    }
+    return "AI 기반 산림 복원 우선순위 현황";
+  }, [selectedProvince, selectedDistrict]);
+
+  // Toggle risk factor selection
+  const toggleRisk = (risk: string) => {
+    setSelectedRisks(prev =>
+      prev.includes(risk) ? prev.filter(r => r !== risk) : [...prev, risk]
+    );
+  };
+
+  const mockCandidateData = {
+    name: "후보지 A",
+    location: "경상북도 의성군",
+    grade: "1등급",
+    score: 92.4,
+    metrics: {
+      fireDamage: 87,
+      disasterRisk: 72,
+      exposure: 65,
+      recoveryDifficulty: 78,
+    },
+  };
+
+  // Mock statistics that would update based on filters
+  const statistics = [
+    { label: "총 후보지", value: "1,842개", icon: <MapPin className="h-5 w-5" />, color: "#2F5D50" },
+    { label: "1등급 후보지", value: "126개", icon: <AlertTriangle className="h-5 w-5" />, color: "#D32F2F" },
+    { label: "2등급 후보지", value: "287개", icon: <AlertTriangle className="h-5 w-5" />, color: "#F57C00" },
+    { label: "3등급 후보지", value: "512개", icon: <AlertTriangle className="h-5 w-5" />, color: "#FBC02D" },
+    { label: "최근 업데이트", value: "2026.06", icon: <Calendar className="h-5 w-5" />, color: "#2F5D50" },
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#F8FAF8]">
+      {/* Navigation */}
+      <nav className="bg-white border-b border-[#E5E7EB]">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <button
+              onClick={() => navigate("/")}
+              className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+            >
+              <div className="w-8 h-8 bg-[#2F5D50] rounded-md flex items-center justify-center">
+                <Map className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-lg font-semibold text-[#2F5D50]">산림 복원 AI</span>
+            </button>
+            <div className="hidden md:flex items-center space-x-8">
+              {navItems.map((item, index) => (
+                <button
+                  key={index}
+                  onClick={() => navigate(item.path)}
+                  className={`flex items-center space-x-2 transition-colors ${
+                    item.path === "/dashboard"
+                      ? "text-[#2F5D50] font-medium"
+                      : "text-gray-700 hover:text-[#2F5D50]"
+                  }`}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Page Header */}
+      <div className="bg-white border-b border-[#E5E7EB]">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <h1 className="text-3xl font-bold text-gray-900">전국 산림 복원 우선순위 현황</h1>
+          <p className="text-gray-600 mt-2">AI 분석 기반 복원 후보지 선정 및 우선순위 시각화</p>
+        </div>
+      </div>
+
+      {/* Main Dashboard Layout */}
+      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-12 gap-6">
+          {/* Left Sidebar - Filters */}
+          <div className="col-span-12 lg:col-span-3 space-y-4">
+            {/* Region Filter */}
+            <Card className="border-[#E5E7EB] shadow-sm">
+              <CardHeader className="pb-3">
+                <button
+                  onClick={() =>
+                    setExpandedFilters({ ...expandedFilters, region: !expandedFilters.region })
+                  }
+                  className="flex items-center justify-between w-full"
+                >
+                  <CardTitle className="text-base">분석 지역</CardTitle>
+                  {expandedFilters.region ? (
+                    <ChevronUp className="h-4 w-4 text-gray-500" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-gray-500" />
+                  )}
+                </button>
+              </CardHeader>
+              {expandedFilters.region && (
+                <CardContent className="space-y-3">
+                  {regions.map((region) => (
+                    <div key={region} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={region}
+                        checked={selectedRegions.includes(region)}
+                        onCheckedChange={() =>
+                          toggleFilter("region", region, setSelectedRegions, selectedRegions)
+                        }
+                      />
+                      <label
+                        htmlFor={region}
+                        className="text-sm text-gray-700 cursor-pointer select-none"
+                      >
+                        {region}
+                      </label>
+                    </div>
+                  ))}
+                </CardContent>
+              )}
+            </Card>
+
+            {/* Year Filter */}
+            <Card className="border-[#E5E7EB] shadow-sm">
+              <CardHeader className="pb-3">
+                <button
+                  onClick={() =>
+                    setExpandedFilters({ ...expandedFilters, year: !expandedFilters.year })
+                  }
+                  className="flex items-center justify-between w-full"
+                >
+                  <CardTitle className="text-base">산불 발생 연도</CardTitle>
+                  {expandedFilters.year ? (
+                    <ChevronUp className="h-4 w-4 text-gray-500" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-gray-500" />
+                  )}
+                </button>
+              </CardHeader>
+              {expandedFilters.year && (
+                <CardContent className="space-y-3">
+                  {years.map((year) => (
+                    <div key={year} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={year}
+                        checked={selectedYears.includes(year)}
+                        onCheckedChange={() =>
+                          toggleFilter("year", year, setSelectedYears, selectedYears)
+                        }
+                      />
+                      <label
+                        htmlFor={year}
+                        className="text-sm text-gray-700 cursor-pointer select-none"
+                      >
+                        {year}
+                      </label>
+                    </div>
+                  ))}
+                </CardContent>
+              )}
+            </Card>
+
+            {/* Grade Filter */}
+            <Card className="border-[#E5E7EB] shadow-sm">
+              <CardHeader className="pb-3">
+                <button
+                  onClick={() =>
+                    setExpandedFilters({ ...expandedFilters, grade: !expandedFilters.grade })
+                  }
+                  className="flex items-center justify-between w-full"
+                >
+                  <CardTitle className="text-base">복원 우선등급</CardTitle>
+                  {expandedFilters.grade ? (
+                    <ChevronUp className="h-4 w-4 text-gray-500" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-gray-500" />
+                  )}
+                </button>
+              </CardHeader>
+              {expandedFilters.grade && (
+                <CardContent className="space-y-3">
+                  {grades.map((grade) => (
+                    <div key={grade} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={grade}
+                        checked={selectedGrades.includes(grade)}
+                        onCheckedChange={() =>
+                          toggleFilter("grade", grade, setSelectedGrades, selectedGrades)
+                        }
+                      />
+                      <label
+                        htmlFor={grade}
+                        className="text-sm text-gray-700 cursor-pointer select-none flex items-center"
+                      >
+                        {grade !== "전체" && (
+                          <div
+                            className="w-3 h-3 rounded mr-2"
+                            style={{
+                              backgroundColor:
+                                grade === "1등급"
+                                  ? "#D32F2F"
+                                  : grade === "2등급"
+                                  ? "#F57C00"
+                                  : grade === "3등급"
+                                  ? "#FBC02D"
+                                  : grade === "4등급"
+                                  ? "#7CB342"
+                                  : "#388E3C",
+                            }}
+                          ></div>
+                        )}
+                        {grade}
+                      </label>
+                    </div>
+                  ))}
+                </CardContent>
+              )}
+            </Card>
+
+            {/* Risk Factors Filter */}
+            <Card className="border-[#E5E7EB] shadow-sm">
+              <CardHeader className="pb-3">
+                <button
+                  onClick={() =>
+                    setExpandedFilters({ ...expandedFilters, risk: !expandedFilters.risk })
+                  }
+                  className="flex items-center justify-between w-full"
+                >
+                  <CardTitle className="text-base">위험요인</CardTitle>
+                  {expandedFilters.risk ? (
+                    <ChevronUp className="h-4 w-4 text-gray-500" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-gray-500" />
+                  )}
+                </button>
+              </CardHeader>
+              {expandedFilters.risk && (
+                <CardContent className="space-y-3">
+                  {risks.map((risk) => (
+                    <div key={risk} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={risk}
+                        checked={selectedRisks.includes(risk)}
+                        onCheckedChange={() => {
+                          setSelectedRisks(
+                            selectedRisks.includes(risk)
+                              ? selectedRisks.filter((r) => r !== risk)
+                              : [...selectedRisks, risk]
+                          );
+                        }}
+                      />
+                      <label
+                        htmlFor={risk}
+                        className="text-sm text-gray-700 cursor-pointer select-none"
+                      >
+                        {risk}
+                      </label>
+                    </div>
+                  ))}
+                </CardContent>
+              )}
+            </Card>
+
+            {/* Active Filters Summary */}
+            {(selectedRegions.some((r) => r !== "전국") ||
+              selectedYears.some((y) => y !== "전체") ||
+              selectedGrades.some((g) => g !== "전체") ||
+              selectedRisks.length > 0) && (
+              <Card className="border-[#2F5D50] bg-[#2F5D50]/5 shadow-sm">
+                <CardContent className="pt-6 space-y-2">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-gray-900">적용된 필터</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedRegions(["전국"]);
+                        setSelectedYears(["전체"]);
+                        setSelectedGrades(["전체"]);
+                        setSelectedRisks([]);
+                      }}
+                      className="text-xs text-[#2F5D50] hover:text-[#2F5D50]/80 h-auto p-0"
+                    >
+                      전체 초기화
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedRegions
+                      .filter((r) => r !== "전국")
+                      .map((region) => (
+                        <div
+                          key={region}
+                          className="inline-flex items-center space-x-1 bg-white border border-[#E5E7EB] rounded px-2 py-1 text-xs"
+                        >
+                          <span>{region}</span>
+                          <button
+                            onClick={() =>
+                              setSelectedRegions(selectedRegions.filter((r) => r !== region))
+                            }
+                            className="text-gray-500 hover:text-gray-700"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    {selectedYears
+                      .filter((y) => y !== "전체")
+                      .map((year) => (
+                        <div
+                          key={year}
+                          className="inline-flex items-center space-x-1 bg-white border border-[#E5E7EB] rounded px-2 py-1 text-xs"
+                        >
+                          <span>{year}</span>
+                          <button
+                            onClick={() => setSelectedYears(selectedYears.filter((y) => y !== year))}
+                            className="text-gray-500 hover:text-gray-700"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    {selectedGrades
+                      .filter((g) => g !== "전체")
+                      .map((grade) => (
+                        <div
+                          key={grade}
+                          className="inline-flex items-center space-x-1 bg-white border border-[#E5E7EB] rounded px-2 py-1 text-xs"
+                        >
+                          <span>{grade}</span>
+                          <button
+                            onClick={() =>
+                              setSelectedGrades(selectedGrades.filter((g) => g !== grade))
+                            }
+                            className="text-gray-500 hover:text-gray-700"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    {selectedRisks.map((risk) => (
+                      <div
+                        key={risk}
+                        className="inline-flex items-center space-x-1 bg-white border border-[#E5E7EB] rounded px-2 py-1 text-xs"
+                      >
+                        <span>{risk}</span>
+                        <button
+                          onClick={() => setSelectedRisks(selectedRisks.filter((r) => r !== risk))}
+                          className="text-gray-500 hover:text-gray-700"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Center - Map */}
+          <div className="col-span-12 lg:col-span-6">
+            <KoreaMap onSelectCandidate={(candidate) => setSelectedCandidate(candidate)} />
+          </div>
+
+          {/* Right - Candidate Summary */}
+          <div className="col-span-12 lg:col-span-3">
+            <CandidateSummary candidate={selectedCandidate || mockCandidateData} />
+          </div>
+        </div>
+
+        {/* Bottom - TOP 10 Section */}
+        <div className="mt-8">
+          <Card className="border-[#E5E7EB] shadow-sm">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl">전국 TOP 10 후보지</CardTitle>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate("/top-candidates")}
+                  className="border-[#2F5D50] text-[#2F5D50] hover:bg-[#2F5D50]/5"
+                >
+                  전체 보기
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-[#F8FAF8]">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                        순위
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                        지역
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                        등급
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                        AI 점수
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                        산불 피해도
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                        재해 위험도
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                        노출도
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E5E7EB]">
+                    {[
+                      {
+                        rank: 1,
+                        location: "경상북도 의성군",
+                        grade: "1등급",
+                        score: 92.4,
+                        fire: 87,
+                        disaster: 72,
+                        exposure: 65,
+                      },
+                      {
+                        rank: 2,
+                        location: "강원도 삼척시",
+                        grade: "1등급",
+                        score: 91.2,
+                        fire: 85,
+                        disaster: 78,
+                        exposure: 68,
+                      },
+                      {
+                        rank: 3,
+                        location: "경상남도 거창군",
+                        grade: "1등급",
+                        score: 89.8,
+                        fire: 82,
+                        disaster: 75,
+                        exposure: 71,
+                      },
+                      {
+                        rank: 4,
+                        location: "전라남도 구례군",
+                        grade: "1등급",
+                        score: 88.5,
+                        fire: 79,
+                        disaster: 73,
+                        exposure: 69,
+                      },
+                      {
+                        rank: 5,
+                        location: "충청북도 제천시",
+                        grade: "2등급",
+                        score: 86.3,
+                        fire: 76,
+                        disaster: 70,
+                        exposure: 66,
+                      },
+                      {
+                        rank: 6,
+                        location: "경상북도 봉화군",
+                        grade: "2등급",
+                        score: 84.7,
+                        fire: 74,
+                        disaster: 68,
+                        exposure: 64,
+                      },
+                      {
+                        rank: 7,
+                        location: "강원도 양양군",
+                        grade: "2등급",
+                        score: 83.1,
+                        fire: 71,
+                        disaster: 66,
+                        exposure: 62,
+                      },
+                      {
+                        rank: 8,
+                        location: "전라남도 광양시",
+                        grade: "2등급",
+                        score: 81.9,
+                        fire: 69,
+                        disaster: 64,
+                        exposure: 60,
+                      },
+                      {
+                        rank: 9,
+                        location: "경상남도 함양군",
+                        grade: "3등급",
+                        score: 80.2,
+                        fire: 67,
+                        disaster: 62,
+                        exposure: 58,
+                      },
+                      {
+                        rank: 10,
+                        location: "충청북도 단양군",
+                        grade: "3등급",
+                        score: 78.8,
+                        fire: 65,
+                        disaster: 60,
+                        exposure: 56,
+                      },
+                    ].map((item) => (
+                      <tr key={item.rank} className="hover:bg-[#F8FAF8] transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#2F5D50]/10 text-[#2F5D50] font-semibold">
+                            {item.rank}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                          {item.location}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium text-white"
+                            style={{
+                              backgroundColor:
+                                item.grade === "1등급"
+                                  ? "#D32F2F"
+                                  : item.grade === "2등급"
+                                  ? "#F57C00"
+                                  : "#FBC02D",
+                            }}
+                          >
+                            {item.grade}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm font-semibold text-gray-900">
+                          {item.score}점
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center space-x-2">
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-[#D32F2F] h-2 rounded-full"
+                                style={{ width: `${item.fire}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-xs text-gray-600 w-8">{item.fire}%</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center space-x-2">
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-[#F57C00] h-2 rounded-full"
+                                style={{ width: `${item.disaster}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-xs text-gray-600 w-8">{item.disaster}%</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center space-x-2">
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-[#FBC02D] h-2 rounded-full"
+                                style={{ width: `${item.exposure}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-xs text-gray-600 w-8">{item.exposure}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
